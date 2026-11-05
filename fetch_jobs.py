@@ -61,12 +61,16 @@ def fetch(board, company, provider="Greenhouse"):
         if provider == "Greenhouse"
         else f"https://api.lever.co/v0/postings/{board}?mode=json"
     )
+    if provider == "Ashby":
+        url = f"https://api.ashbyhq.com/posting-api/job-board/{board}"
     with urlopen(Request(url, headers={"User-Agent": "NextChapterPublicJobs/1.0"}), timeout=30) as response:
         raw = json.load(response)
-    raw = raw["jobs"] if provider == "Greenhouse" else raw
+    raw = raw["jobs"] if provider in {"Greenhouse", "Ashby"} else raw
     now = datetime.now(UTC).isoformat()
     rows = []
     for j in raw:
+        if not j.get("isListed", True):
+            continue
         title = plain(j.get("title", j.get("text", "")))
         track = next(
             (name for name, pattern in TRACKS.items() if re.search(pattern, title, re.IGNORECASE)), None
@@ -78,14 +82,27 @@ def fetch(board, company, provider="Greenhouse"):
             if provider == "Greenhouse"
             else j.get("categories", {}).get("location", "")
         )
+        if provider == "Ashby":
+            location = plain(j.get("location", "")) + (" (Remote)" if j.get("isRemote") else "")
         description = plain(j.get("content", j.get("descriptionPlain", "")))
+        if provider == "Lever":
+            description += " " + " ".join(plain(x.get("content", "")) for x in j.get("lists", []))
+            description += " " + plain(j.get("additionalPlain", ""))
         link = j.get("absolute_url", j.get("hostedUrl", ""))
+        if provider == "Ashby":
+            link = j.get("jobUrl", "")
         parsed = urlparse(link)
         if parsed.scheme != "https" or parsed.username or parsed.password:
             continue
         exp = experience_required(description + " " + title)
-        junior = not re.search(
-            r"\b(senior|sr|lead|principal|director|head|manager|architect)\b", title, re.IGNORECASE
+        early_associate = (
+            bool(re.search(r"\bsenior associate\b", title, re.IGNORECASE)) and exp is not None and exp <= 3
+        )
+        junior = (
+            early_associate
+            or not re.search(
+                r"\b(senior|sr|lead|principal|director|head|manager|architect)\b", title, re.IGNORECASE
+            )
         ) and (exp is None or exp <= 3)
         rows.append(
             {
@@ -107,7 +124,9 @@ def fetch(board, company, provider="Greenhouse"):
 def main():
     jobs, sources, errors, scanned = [], [], [], 0
     requests = [(board, company, "Greenhouse") for board, company in BOARDS.items()] + [
-        ("aleph", "Aleph", "Lever")
+        ("aleph", "Aleph", "Lever"),
+        ("mindtickle", "Mindtickle", "Lever"),
+        ("pebl", "Pebl", "Ashby"),
     ]
     with concurrent.futures.ThreadPoolExecutor(max_workers=7) as pool:
         futures = {pool.submit(fetch, *item): item for item in requests}
