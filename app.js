@@ -1,5 +1,6 @@
 import {createClient} from '@supabase/supabase-js';
 
+const hasAuthLinkError = new URLSearchParams(location.hash.slice(1)).has('error');
 const db = createClient('https://ybyfecibshwmqalyljiv.supabase.co', 'sb_publishable_rYEaqokQ_QsmmZOAEjpL-Q_BuwdwZ_u');
 const $ = id => document.getElementById(id);
 const statuses = ['Saved','Applied','Interview','Offer','Closed'];
@@ -40,6 +41,10 @@ function renderSources() {
 }
 function render() {
   const active = view();
+  const selectedSource=$('source').value, sourceNames=new Set(['Greenhouse','Lever','Ashby',...Array.from(tracked.values(),j=>j.source)]);
+  $('source').replaceChildren();const allSources=node('option','All sources');allSources.value='';$('source').append(allSources);
+  for(const name of [...sourceNames].filter(Boolean).sort()){$('source').append(node('option',name));}
+  $('source').value=sourceNames.has(selectedSource)?selectedSource:'';
   document.querySelectorAll('[data-view]').forEach(a => a.setAttribute('aria-current', a.dataset.view===active?'page':'false'));
   $('workspace').hidden = active==='sources'; $('source-panel').hidden = active!=='sources';
   $('tracker-tools').hidden = active!=='tracker'; $('status-filter').hidden = active!=='tracker';
@@ -58,7 +63,7 @@ function render() {
   }
   const q=$('query').value.toLowerCase().trim(),loc=$('location').value.toLowerCase();
   const aliases={india:/india|coimbatore|kerala|kochi|bengaluru|bangalore|karnataka|mumbai|goa|chennai|hyderabad|noida|gurgaon|gurugram|delhi|pune|worldwide|anywhere/i,kerala:/kerala|kochi|cochin|ernakulam|thrissur|palakkad|trivandrum|thiruvananthapuram|kozhikode|calicut|kannur|kollam/i,bengaluru:/bengaluru|bangalore/i,karnataka:/karnataka|bengaluru|bangalore|mysore|mysuru|mangalore|mangaluru/i};
-  const base=active==='tracker'?[...tracked.values()].map(j=>({...j,url:j.job_url,checked_at:j.updated_at,snippet:'Saved to your private tracker.',track:'',early_career:true})):jobs;
+  const base=active==='tracker'?[...tracked.values()].map(j=>({...j,url:j.job_url,checked_at:j.updated_at,snippet:j.notes||'Saved to your private tracker.',track:'',early_career:true})):jobs;
   let list=base.filter(j=>(!q||`${j.title} ${j.company} ${j.snippet||''}`.toLowerCase().includes(q)) && (active==='tracker'||!loc||(aliases[loc]?aliases[loc].test(j.location):j.location.toLowerCase().includes(loc))) && (active==='tracker'||!$('track').value||j.track===$('track').value) && (!$('source').value||j.source===$('source').value) && (active==='tracker'||!$('junior').checked||j.early_career) && (active!=='tracker'||!$('status').value||j.status===$('status').value));
   list.sort((a,b)=>$('sort').value==='checked'?(b.checked_at||'').localeCompare(a.checked_at||''):a[$('sort').value].localeCompare(b[$('sort').value]));
   $('count').textContent=`${list.length} ${active==='tracker'?(list.length===1?'tracked job':'tracked jobs'):(list.length===1?'opportunity':'opportunities')}`;
@@ -131,7 +136,7 @@ async function authenticate(signup=false) {
 $('auth-form').onsubmit=e=>{e.preventDefault();authenticate();};$('signup').onclick=()=>authenticate(true);
 $('email-link').onclick=async()=>{if(!$('email').reportValidity())return;$('email-link').disabled=true;try{const {error}=await db.auth.signInWithOtp({email:$('email').value.trim(),options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;$('auth-message').textContent='Check your email for a secure sign-in link. Open it on the device you want to use.';}catch(e){$('auth-message').textContent=e.message;}finally{$('email-link').disabled=false;}};
 $('account').onclick=async()=>{if(!user){requireUser();return;}const {error}=await db.auth.signOut();if(error)notice(error.message);else notice('Signed out. Your saved jobs remain private in your account.');};
-db.auth.onAuthStateChange((event,session)=>{const next=session?.user||null;if(next?.id!==user?.id){authVersion++;tracked=new Map();}user=next;$('sync-status').textContent=user?'Loading your private tracker…':'Sign in to sync your tracker across devices.';render();if(user)setTimeout(syncTracker,0);if(event==='PASSWORD_RECOVERY'){$('auth-dialog').close();$('recovery-dialog').showModal();}});
+db.auth.onAuthStateChange((event,session)=>{const next=session?.user||null;if(next?.id!==user?.id){authVersion++;tracked=new Map();}user=next;$('sync-status').textContent=user?'Loading your private tracker…':'Sign in to sync your tracker across devices.';render();if(user){$('auth-dialog').close();setTimeout(syncTracker,0);}if(event==='PASSWORD_RECOVERY'){$('auth-dialog').close();$('recovery-dialog').showModal();}});
 $('forgot').onclick=async()=>{if(!$('email').reportValidity())return;$('forgot').disabled=true;try{const {error}=await db.auth.resetPasswordForEmail($('email').value.trim(),{redirectTo:location.origin+location.pathname});if(error)throw error;$('auth-message').textContent='If an account exists, a password reset link will arrive by email.';}catch(e){$('auth-message').textContent=e.message;}finally{$('forgot').disabled=false;}};
 $('recovery-form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{const {error}=await db.auth.updateUser({password:$('new-password').value});if(error)throw error;$('new-password').value='';$('recovery-dialog').close();notice('Password updated.');}catch(err){$('recovery-message').textContent=err.message;}finally{b.disabled=false;}};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
@@ -142,3 +147,4 @@ $('refresh').onclick=loadFeed;$('sync').onclick=syncTracker;$('add-job').onclick
 $('job-form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{await saveJob({url:$('job-url').value,title:$('job-title').value.trim(),company:$('job-company').value.trim(),location:$('job-location').value.trim(),source:'Added by you'});$('job-dialog').close();$('job-form').reset();notice('Job added to your private tracker.');}catch(err){$('job-message').textContent=err.message;}finally{b.disabled=false;}};
 $('export').onclick=()=>{if(!requireUser())return;const blob=new Blob([JSON.stringify({exported_at:new Date().toISOString(),jobs:[...tracked.values()].map(({user_id,...j})=>j)},null,2)],{type:'application/json'});const a=node('a');a.href=URL.createObjectURL(blob);a.download='next-chapter-tracker.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
 render();loadFeed();
+if(hasAuthLinkError)notice('This sign-in link was already used or has expired. If you are not already signed in, request a new email link.');
