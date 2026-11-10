@@ -43,6 +43,7 @@ function render() {
   document.querySelectorAll('[data-view]').forEach(a => a.setAttribute('aria-current', a.dataset.view===active?'page':'false'));
   $('workspace').hidden = active==='sources'; $('source-panel').hidden = active!=='sources';
   $('tracker-tools').hidden = active!=='tracker'; $('status-filter').hidden = active!=='tracker';
+  for(const id of ['location','track','junior'])$(id).closest('label').hidden=active==='tracker';
   $('view-label').textContent = active==='tracker' ? 'YOUR PRIVATE APPLICATION TRACKER' : 'EXPLORE OPPORTUNITIES';
   $('account').textContent = user ? 'Sign out' : 'Sign in';
   $('tracker-count').textContent = String(tracked.size);
@@ -60,7 +61,7 @@ function render() {
   const base=active==='tracker'?[...tracked.values()].map(j=>({...j,url:j.job_url,checked_at:j.updated_at,snippet:'Saved to your private tracker.',track:'',early_career:true})):jobs;
   let list=base.filter(j=>(!q||`${j.title} ${j.company} ${j.snippet||''}`.toLowerCase().includes(q)) && (active==='tracker'||!loc||(aliases[loc]?aliases[loc].test(j.location):j.location.toLowerCase().includes(loc))) && (active==='tracker'||!$('track').value||j.track===$('track').value) && (!$('source').value||j.source===$('source').value) && (active==='tracker'||!$('junior').checked||j.early_career) && (active!=='tracker'||!$('status').value||j.status===$('status').value));
   list.sort((a,b)=>$('sort').value==='checked'?(b.checked_at||'').localeCompare(a.checked_at||''):a[$('sort').value].localeCompare(b[$('sort').value]));
-  $('count').textContent=`${list.length} ${active==='tracker'?'tracked jobs':'opportunities'}`;
+  $('count').textContent=`${list.length} ${active==='tracker'?(list.length===1?'tracked job':'tracked jobs'):(list.length===1?'opportunity':'opportunities')}`;
   for (const j of list.slice(0,limit)) {
     const c=node('article',null,'card'),body=node('div'); c.append(node('div',j.company.slice(0,2).toUpperCase(),'logo'),body);
     body.append(node('h3',j.title),node('p',`${j.company} · ${j.location||'See listing'}`,'company'));
@@ -128,6 +129,7 @@ async function authenticate(signup=false) {
   }catch(e){$('auth-message').textContent=e.message;}finally{$('login').disabled=$('signup').disabled=false;}
 }
 $('auth-form').onsubmit=e=>{e.preventDefault();authenticate();};$('signup').onclick=()=>authenticate(true);
+$('email-link').onclick=async()=>{if(!$('email').reportValidity())return;$('email-link').disabled=true;try{const {error}=await db.auth.signInWithOtp({email:$('email').value.trim(),options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;$('auth-message').textContent='Check your email for a secure sign-in link. Open it on the device you want to use.';}catch(e){$('auth-message').textContent=e.message;}finally{$('email-link').disabled=false;}};
 $('account').onclick=async()=>{if(!user){requireUser();return;}const {error}=await db.auth.signOut();if(error)notice(error.message);else notice('Signed out. Your saved jobs remain private in your account.');};
 db.auth.onAuthStateChange((event,session)=>{const next=session?.user||null;if(next?.id!==user?.id){authVersion++;tracked=new Map();}user=next;$('sync-status').textContent=user?'Loading your private tracker…':'Sign in to sync your tracker across devices.';render();if(user)setTimeout(syncTracker,0);if(event==='PASSWORD_RECOVERY'){$('auth-dialog').close();$('recovery-dialog').showModal();}});
 $('forgot').onclick=async()=>{if(!$('email').reportValidity())return;$('forgot').disabled=true;try{const {error}=await db.auth.resetPasswordForEmail($('email').value.trim(),{redirectTo:location.origin+location.pathname});if(error)throw error;$('auth-message').textContent='If an account exists, a password reset link will arrive by email.';}catch(e){$('auth-message').textContent=e.message;}finally{$('forgot').disabled=false;}};

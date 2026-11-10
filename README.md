@@ -29,3 +29,7 @@ python -m http.server 8766 --directory site
 ```
 
 The private application agent remains in `Abteeeen/next-chapter-job-agent`. Publish only this directory's explicit source files into the public checkout. Never publish the parent directory or its private data, output, resume or environment files.
+
+Production: https://next-chapter-jobs.vercel.app/
+
+Use **Email me a sign-in link** for passwordless access. Email/password and password recovery are also available. Auth redirects are configured for the production URL and the Pages backup. The schema reference is in `supabase/schema.sql`; it is not included in the deployed static artifacts.
