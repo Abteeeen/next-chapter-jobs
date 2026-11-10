@@ -16,6 +16,8 @@ BOARDS = {
     "freshprints": "Fresh Prints",
     "winhomeinspection": "WIN Home Inspection",
     "clearviewhealthcarepartners": "ClearView Healthcare Partners",
+    "flix": "Flix",
+    "karya": "Karya",
 }
 TRACKS = {
     "Analytics": r"data analyst|business analyst|reporting analyst|power bi|bi analyst|operations analyst",
@@ -84,8 +86,10 @@ def fetch(board, company, provider="Greenhouse"):
         )
         if provider == "Ashby":
             location = plain(j.get("location", "")) + (" (Remote)" if j.get("isRemote") else "")
-        description = plain(j.get("content", j.get("descriptionPlain", "")))
+        description = plain(j.get("content") or j.get("descriptionPlain") or j.get("description") or j.get("descriptionHtml") or "")
         if provider == "Lever":
+            if j.get("workplaceType") == "remote":
+                location += " (Remote)"
             description += " " + " ".join(plain(x.get("content", "")) for x in j.get("lists", []))
             description += " " + plain(j.get("additionalPlain", ""))
         link = j.get("absolute_url", j.get("hostedUrl", ""))
@@ -126,6 +130,8 @@ def main():
     requests = [(board, company, "Greenhouse") for board, company in BOARDS.items()] + [
         ("aleph", "Aleph", "Lever"),
         ("mindtickle", "Mindtickle", "Lever"),
+        ("weekdayworks", "Weekday", "Lever"),
+        ("protolabs", "Protolabs", "Lever"),
         ("pebl", "Pebl", "Ashby"),
     ]
     with concurrent.futures.ThreadPoolExecutor(max_workers=7) as pool:

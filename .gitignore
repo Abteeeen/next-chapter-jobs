@@ -1,0 +1,5 @@
+node_modules/
+site/
+.vercel/
+__pycache__/
+.env*
