@@ -16,6 +16,7 @@
     <a class="brand" href="#explore"><span class="brand-mark" aria-hidden="true">N</span>Next Chapter</a>
     <nav aria-label="Main navigation">
       <a href="#explore" data-view="explore" aria-current="page">Explore jobs</a>
+      <a href="#portal" data-view="portal">Portal jobs <span id="portal-count" class="nav-count" hidden></span></a>
       <a href="#tracker" data-view="tracker">My tracker <span id="tracker-count" hidden></span></a>
       <a href="#sources" data-view="sources">Sources</a>
     </nav>
@@ -32,7 +33,7 @@
       </div>
       <div class="feed-status" id="feed-status">
         <div>
-          <strong><span id="feed-dot" class="dot" aria-hidden="true"></span>Employer feed</strong>
+          <strong><span id="feed-dot" class="dot" aria-hidden="true"></span>Job feed</strong>
           <p id="updated" role="status">Checking for listings…</p>
         </div>
         <button id="refresh" type="button">Refresh</button>
@@ -77,7 +78,10 @@
       </form>
       <div id="jobs" tabindex="-1">
         <div class="results-head">
-          <h2 id="count" aria-live="polite">Loading jobs…</h2>
+          <div>
+            <h2 id="count" aria-live="polite">Loading jobs…</h2>
+            <p id="feed-total" class="filter-caption" hidden></p>
+          </div>
           <div class="result-controls">
             <label id="status-filter" hidden><span class="sr-only">Application status</span><select id="status"><option value="">All statuses</option><option>Saved</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Closed</option></select></label>
             <label><span class="sr-only">Sort results</span><select id="sort"><option value="checked">Most recently checked</option><option value="company">Company A–Z</option><option value="title">Job title A–Z</option></select></label>
@@ -88,6 +92,10 @@
           <button type="button" id="export">Export</button>
           <button type="button" id="sync">Sync now</button>
         </div>
+        <div id="portal-tools" class="toolbar" hidden>
+          <p id="portal-updated" role="status"></p>
+          <button id="portal-refresh" type="button">Check for imports</button>
+        </div>
         <p id="health" class="feed-warning" role="status"></p>
         <div id="cards" class="cards"></div>
         <button id="more" type="button" hidden>Show more jobs</button>
@@ -95,7 +103,7 @@
     </section>
 
     <section id="source-panel" hidden>
-      <h2>Employer boards</h2>
+      <h2>Connected job feeds</h2>
       <p id="source-summary"></p>
       <div id="source-list" class="source-grid"></div>
       <h2>Search job portals</h2>

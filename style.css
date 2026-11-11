@@ -96,7 +96,7 @@ h3 { font-size: 1.06rem; overflow-wrap: anywhere; }
 }
 .sidebar nav a:hover { background: #264238; text-decoration: none; }
 .sidebar nav a[aria-current=page] { background: #d9ecce; color: var(--green-dark); }
-#tracker-count { padding: 1px 6px; border: 1px solid currentColor; border-radius: 20px; font-size: .75rem; }
+#tracker-count, .nav-count { padding: 1px 6px; border: 1px solid currentColor; border-radius: 20px; font-size: .75rem; }
 .account-box { margin-top: auto; padding-top: 16px; border-top: 1px solid #476459; }
 .account-box p { margin-bottom: 10px; color: #ccddd2; font-size: .78rem; overflow-wrap: anywhere; }
 .account-box button { width: 100%; background: #25463a; color: white; border-color: #628476; }
@@ -153,6 +153,7 @@ input:not([type=checkbox]), select {
 .results-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 0 12px; }
 .result-controls, .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .toolbar { margin-bottom: 12px; }
+#portal-updated { font-size: .85rem; }
 .cards, .source-grid, .portal-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .card, .source-card, .empty { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); padding: 17px; background: var(--surface); }
 .card { display: flex; flex-direction: column; gap: 12px; }
