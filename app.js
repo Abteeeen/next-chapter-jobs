@@ -1,7 +1,6 @@
-import {createClient} from '@supabase/supabase-js';
-
-const hasAuthLinkError = new URLSearchParams(location.hash.slice(1)).has('error');
-const db = createClient('https://ybyfecibshwmqalyljiv.supabase.co', 'sb_publishable_rYEaqokQ_QsmmZOAEjpL-Q_BuwdwZ_u');
+const trackerEndpoint = 'https://ybyfecibshwmqalyljiv.supabase.co/rest/v1/rpc/personal_tracker';
+const publishableKey = 'sb_publishable_rYEaqokQ_QsmmZOAEjpL-Q_BuwdwZ_u';
+const accessStorage = 'next-chapter-personal-access';
 const $ = id => document.getElementById(id);
 const statuses = ['Saved','Applied','Interview','Offer','Closed'];
 const pageSize = 24;
@@ -11,8 +10,9 @@ const filterStates = {explore:{...filterDefaults},tracker:{...filterDefaults},po
 const preferredLocations = /\b(coimbatore|kerala|kochi|cochin|ernakulam|thrissur|palakkad|trivandrum|thiruvananthapuram|kozhikode|calicut|kannur|kollam|kottayam|bengaluru|bangalore|karnataka|mysore|mysuru|mangalore|mangaluru|mumbai|goa)\b/i;
 const indianLocations = /\b(india|chennai|hyderabad|noida|gurgaon|gurugram|delhi|pune|ahmedabad|kolkata|jaipur)\b/i;
 const globalRemote = /\b(worldwide|anywhere|global remote|remote global)\b|^remote$/i;
-let jobs = [], tracked = new Map(), user = null, limit = pageSize, feed = null, syncing = false, authVersion = 0;
-let authReady = false, trackerReady = false, trackerRevision = 0, trackerError = '', feedState = 'loading';
+let jobs = [], tracked = new Map(), limit = pageSize, feed = null, syncing = false;
+let trackerReady = false, trackerRevision = 0, trackerError = '', feedState = 'loading';
+let todayApplied = null;
 let portalJobs = [], portalReady = false, portalCheckedAt = null, portalError = false;
 const node = (tag, text, cls) => { const e = document.createElement(tag); if (text) e.textContent = text; if (cls) e.className = cls; return e; };
 const date = value => Number.isNaN(Date.parse(value)) ? 'Date unavailable' : new Intl.DateTimeFormat('en-IN', {dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Kolkata'}).format(new Date(value));
@@ -20,9 +20,35 @@ function safeURL(value) {
   try { const p = new URL(value); return p.protocol === 'https:' && !p.username && !p.password && p.hostname.includes('.') && !/^(localhost|127\.|0\.|10\.|192\.168\.)/.test(p.hostname) ? p.href : null; } catch { return null; }
 }
 function notice(text) { $('notice').textContent = text; }
+function accessFromLink() {
+  const value = new URLSearchParams(location.hash.slice(1)).get('access');
+  if (!value) return '';
+  history.replaceState(null,'','#tracker');
+  return /^[0-9a-f]{64}$/.test(value) ? value : '';
+}
+const linkAccess = accessFromLink();
+let accessKey = linkAccess;
+if (!accessKey) {
+  try { accessKey = localStorage.getItem(accessStorage) || ''; } catch { /* Public listings still work. */ }
+}
+async function trackerRequest(action,job = {}) {
+  if (!accessKey) throw Error('Open your private tracker link first.');
+  const response = await fetch(trackerEndpoint,{
+    method:'POST', cache:'no-store', signal:AbortSignal.timeout(15000),
+    headers:{apikey:publishableKey,'Content-Type':'application/json','x-next-chapter-access':accessKey},
+    body:JSON.stringify({p_action:action,p_job:job})
+  });
+  if (!response.ok) {
+    if ([401,403].includes(response.status)) throw Error('This private link is unavailable. Open your current private tracker link.');
+    throw Error('Tracker request failed. Try again in a moment.');
+  }
+  if (linkAccess) {
+    try { localStorage.setItem(accessStorage,linkAccess); } catch { /* This tab can still use the link. */ }
+  }
+  return response.json();
+}
 function view() { return ['tracker','portal','sources'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'explore'; }
 let activeView = view();
-function requireUser() { if (user) return true; $('auth-dialog').showModal(); return false; }
 function sourceLinks() {
   const {query,location} = filterStates.explore;
   const q = query.trim() || 'HR analyst automation';
@@ -170,9 +196,8 @@ function renderCard(j,isTracker,isPortal) {
     };
     label.append(select);
     actions.append(label);
-  } else if (!status && !j.alert_only) {
+  } else if (accessKey && !status && !j.alert_only) {
     const button = actionButton('+ Track & open',async () => {
-      if (!requireUser()) return;
       window.open(link.href,'_blank','noopener,noreferrer');
       button.disabled = true;
       try { await saveJob(j); notice('Job saved. Update its status in My tracker after you apply.'); }
@@ -191,7 +216,7 @@ function render() {
   const isTracker = activeView === 'tracker';
   const isPortal = activeView === 'portal';
   const isSources = activeView === 'sources';
-  const canSearch = (!isTracker && !isPortal) || Boolean(user);
+  const canSearch = (!isTracker && !isPortal) || Boolean(accessKey);
   document.querySelectorAll('[data-view]').forEach(a => {
     if (a.dataset.view === activeView) a.setAttribute('aria-current','page');
     else a.removeAttribute('aria-current');
@@ -206,13 +231,14 @@ function render() {
   $('feed-status').hidden = isTracker || isPortal;
   $('workspace').hidden = isSources;
   $('source-panel').hidden = !isSources;
-  $('progress').hidden = isSources || isPortal || !user;
-  $('stats').hidden = !user;
+  $('progress').hidden = isSources || isPortal || !accessKey;
+  $('stats').hidden = !accessKey;
   $('view-tracker').hidden = isTracker;
-  $('account').textContent = user ? 'Sign out' : 'Sign in';
-  $('tracker-count').hidden = !user || !trackerReady;
+  $('today-applied').hidden = todayApplied === null;
+  $('today-applied').textContent = todayApplied === null ? '' : `${todayApplied} confirmed today (IST)`;
+  $('tracker-count').hidden = !accessKey || !trackerReady;
   $('tracker-count').textContent = String(tracked.size);
-  $('portal-count').hidden = !user || !portalReady;
+  $('portal-count').hidden = !accessKey || !portalReady;
   $('portal-count').textContent = String(portalJobs.length);
   const counts = new Map();
   for (const job of tracked.values()) counts.set(job.status,(counts.get(job.status) || 0) + 1);
@@ -223,9 +249,9 @@ function render() {
   if (isSources) { renderSources(); return; }
 
   $('filters').hidden = !canSearch;
-  $('tracker-tools').hidden = !isTracker || !user;
-  $('portal-tools').hidden = !isPortal || !user;
-  $('status-filter').hidden = !isTracker || !user;
+  $('tracker-tools').hidden = !isTracker || !accessKey;
+  $('portal-tools').hidden = !isPortal || !accessKey;
+  $('status-filter').hidden = !isTracker || !accessKey;
   $('sort').closest('label').hidden = !canSearch;
   $('health').hidden = isTracker || isPortal;
   $('feed-total').hidden = isTracker || isPortal || !feed;
@@ -249,9 +275,9 @@ function render() {
   const focusedJob = focused?.closest('.card')?.dataset.jobUrl;
   root.replaceChildren();
   $('more').hidden = true;
-  if ((isTracker || isPortal) && !user) {
-    $('count').textContent = authReady ? (isPortal ? 'Your private portal feed' : 'Your private tracker') : 'Checking sign-in…';
-    if (authReady) emptyState('Sign in to see your jobs',isPortal ? 'Jobs from your email alerts are visible only in your account.' : 'Saved jobs and application statuses sync across devices.',actionButton('Sign in',requireUser));
+  if ((isTracker || isPortal) && !accessKey) {
+    $('count').textContent = isPortal ? 'Your private portal feed' : 'Your private tracker';
+    emptyState('Open your private tracker link',isPortal ? 'Your imported job alerts will appear here.' : 'Your saved jobs and application history will appear here.',actionButton('Explore jobs',() => { location.hash = 'explore'; }));
     return;
   }
   if (isPortal && !portalReady) {
@@ -302,14 +328,10 @@ function render() {
 }
 
 async function syncPortalJobs() {
-  if (!user || $('portal-refresh').disabled) return;
-  const version = authVersion;
+  if (!accessKey || $('portal-refresh').disabled) return;
   $('portal-refresh').disabled = true;
   try {
-    const {data,error} = await db.from('portal_job_snapshots').select('jobs,checked_at')
-      .eq('user_id',user.id).order('id',{ascending:false}).limit(1).maybeSingle();
-    if (error) throw error;
-    if (version !== authVersion) return;
+    const data = await trackerRequest('portal');
     const changed = !portalReady || portalError || portalCheckedAt !== (data?.checked_at || null);
     portalCheckedAt = data?.checked_at || null;
     portalJobs = (Array.isArray(data?.jobs) ? data.jobs : []).filter(j =>
@@ -319,31 +341,29 @@ async function syncPortalJobs() {
     portalError = false;
     $('portal-updated').textContent = portalCheckedAt ? `Last import ${date(portalCheckedAt)} IST` : 'No import yet';
     if (changed) render();
-  } catch {
-    if (version !== authVersion) return;
+  } catch (error) {
     portalError = true;
-    $('portal-updated').textContent = 'Could not check for imports';
+    $('portal-updated').textContent = error.message;
     if (activeView === 'portal') render();
   } finally {
     $('portal-refresh').disabled = false;
-    if (user && version !== authVersion) setTimeout(syncPortalJobs,0);
   }
 }
 
 async function syncTracker() {
-  if (!user || syncing) return;
-  const version = authVersion, uid = user.id, revision = trackerRevision;
+  if (!accessKey || syncing) return;
+  const revision = trackerRevision;
   syncing = true;
   $('sync').disabled = true;
   $('sync-status').textContent = 'Syncing your tracker…';
   try {
-    const {data,error} = await db.from('tracked_jobs').select('*').eq('user_id',uid).order('updated_at',{ascending:false});
-    if (error) throw error;
-    if (version !== authVersion || revision !== trackerRevision) return;
-    const rows = data.filter(j => safeURL(j.job_url));
-    const changed = !trackerReady || rows.length !== tracked.size ||
+    const {jobs: saved, today_applied: confirmed} = await trackerRequest('list');
+    if (revision !== trackerRevision) return;
+    const rows = saved.filter(j => safeURL(j.job_url));
+    const changed = !trackerReady || confirmed !== todayApplied || rows.length !== tracked.size ||
       rows.some(j => JSON.stringify(tracked.get(j.job_url)) !== JSON.stringify(j));
     trackerReady = true;
+    todayApplied = confirmed;
     trackerError = '';
     $('sync-status').textContent = `Tracker synced · ${date(new Date().toISOString())} IST`;
     if (changed) {
@@ -351,7 +371,6 @@ async function syncTracker() {
       render();
     }
   } catch (error) {
-    if (version !== authVersion) return;
     trackerError = error.message;
     $('sync-status').textContent = 'Tracker sync failed';
     if (!trackerReady) render();
@@ -359,28 +378,22 @@ async function syncTracker() {
   } finally {
     syncing = false;
     $('sync').disabled = false;
-    if (user && (version !== authVersion || revision !== trackerRevision)) setTimeout(syncTracker,0);
+    if (revision !== trackerRevision) setTimeout(syncTracker,0);
   }
 }
 async function saveJob(j) {
-  if(!user)throw Error('Sign in before saving.');
   const url=safeURL(j.url);if(!url)throw Error('Use an HTTPS job link.');if(tracked.has(url))return;
-  const row={user_id:user.id,job_url:url,title:j.title,company:j.company||'Company not provided',location:j.location||'',source:j.source||'Added by you',status:'Saved'};
-  const {data,error}=await db.from('tracked_jobs').upsert(row,{onConflict:'user_id,job_url',ignoreDuplicates:true}).select();if(error)throw error;
-  if(user?.id!==row.user_id)return;
-  if (data?.[0]) {
-    tracked.set(url,data[0]);
-    trackerRevision++;
-  }
+  const row={job_url:url,title:j.title,company:j.company||'Company not provided',location:j.location||'',source:j.source||'Added by you'};
+  const saved = await trackerRequest('save',row);
+  tracked.set(url,saved);
+  trackerRevision++;
   await syncTracker();
   render();
 }
 async function changeStatus(j,status) {
-  if(!user||!statuses.includes(status))throw Error('Sign in and select a valid status.');
-  const uid=user.id;
-  const {data,error}=await db.from('tracked_jobs').update({status,updated_at:new Date().toISOString()}).eq('user_id',uid).eq('job_url',j.job_url).select().single();if(error)throw error;
-  if(user?.id!==uid)return;
-  tracked.set(j.job_url,data);trackerRevision++;render();notice(`Status updated to ${status}.`);
+  if (!statuses.includes(status)) throw Error('Select a valid status.');
+  const updated = await trackerRequest('status',{job_url:j.job_url,status});
+  tracked.set(j.job_url,updated);trackerRevision++;render();notice(`Status updated to ${status}.`);
 }
 async function loadFeed() {
   if ($('refresh').disabled) return;
@@ -411,50 +424,6 @@ async function loadFeed() {
     render();
   }
 }
-async function authenticate(signup=false) {
-  if(!$('auth-form').reportValidity())return;
-  $('login').disabled=$('signup').disabled=true;$('auth-message').textContent=signup?'Creating your account…':'Signing in…';
-  try {
-    const credentials={email:$('email').value.trim(),password:$('password').value};
-    const {data,error}=signup?await db.auth.signUp({...credentials,options:{emailRedirectTo:location.origin+location.pathname}}):await db.auth.signInWithPassword(credentials);
-    if(error)throw error;
-    $('password').value='';
-    if(data.session){$('auth-dialog').close();notice('Signed in. Your tracker syncs across devices.');}else $('auth-message').textContent='Check your email to confirm your account, then return here to sign in.';
-  }catch(e){$('auth-message').textContent=e.message;}finally{$('login').disabled=$('signup').disabled=false;}
-}
-$('auth-form').onsubmit=e=>{e.preventDefault();authenticate();};$('signup').onclick=()=>authenticate(true);
-$('email-link').onclick=async()=>{if(!$('email').reportValidity())return;$('email-link').disabled=true;try{const {error}=await db.auth.signInWithOtp({email:$('email').value.trim(),options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;$('auth-message').textContent='Check your email for a secure sign-in link. Open it on the device you want to use.';}catch(e){$('auth-message').textContent=e.message;}finally{$('email-link').disabled=false;}};
-$('account').onclick=async()=>{if(!user){requireUser();return;}const {error}=await db.auth.signOut();if(error)notice(error.message);else notice('Signed out. Your saved jobs remain private in your account.');};
-db.auth.onAuthStateChange((event,session)=>{
-  const next = session?.user || null;
-  const changed = next?.id !== user?.id || !authReady;
-  if (changed) {
-    authVersion++;
-    tracked = new Map();
-    trackerReady = false;
-    trackerError = '';
-    portalJobs = [];
-    portalReady = false;
-    portalCheckedAt = null;
-    portalError = false;
-    $('portal-updated').textContent = '';
-    $('sync-status').textContent = next ? 'Loading your tracker…' : 'Sign in to sync across devices.';
-  }
-  user = next;
-  authReady = true;
-  if (changed) render();
-  if (user && changed) {
-    $('auth-dialog').close();
-    setTimeout(syncTracker,0);
-    setTimeout(syncPortalJobs,0);
-  }
-  if (event === 'PASSWORD_RECOVERY') {
-    $('auth-dialog').close();
-    $('recovery-dialog').showModal();
-  }
-});
-$('forgot').onclick=async()=>{if(!$('email').reportValidity())return;$('forgot').disabled=true;try{const {error}=await db.auth.resetPasswordForEmail($('email').value.trim(),{redirectTo:location.origin+location.pathname});if(error)throw error;$('auth-message').textContent='If an account exists, a password reset link will arrive by email.';}catch(e){$('auth-message').textContent=e.message;}finally{$('forgot').disabled=false;}};
-$('recovery-form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{const {error}=await db.auth.updateUser({password:$('new-password').value});if(error)throw error;$('new-password').value='';$('recovery-dialog').close();notice('Password updated.');}catch(err){$('recovery-message').textContent=err.message;}finally{b.disabled=false;}};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 for (const id of filterIds) $(id).addEventListener('input',() => {
   limit = pageSize;
@@ -490,6 +459,10 @@ document.querySelectorAll('[data-status]').forEach(button => {
   };
 });
 window.addEventListener('hashchange',() => {
+  if (new URLSearchParams(location.hash.slice(1)).has('access')) {
+    location.reload();
+    return;
+  }
   const next = view();
   if (next === activeView) return;
   rememberFilters();
@@ -507,8 +480,8 @@ window.addEventListener('hashchange',() => {
 });
 window.addEventListener('focus',syncTracker);
 setInterval(() => { if (!document.hidden) syncTracker(); },60000);
-$('refresh').onclick=loadFeed;$('sync').onclick=syncTracker;$('portal-refresh').onclick=syncPortalJobs;$('add-job').onclick=()=>{if(requireUser())$('job-dialog').showModal();};
+$('refresh').onclick=loadFeed;$('sync').onclick=syncTracker;$('portal-refresh').onclick=syncPortalJobs;$('add-job').onclick=()=>$('job-dialog').showModal();
 $('job-form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{await saveJob({url:$('job-url').value,title:$('job-title').value.trim(),company:$('job-company').value.trim(),location:$('job-location').value.trim(),source:'Added by you'});$('job-dialog').close();$('job-form').reset();notice('Job added to your private tracker.');}catch(err){$('job-message').textContent=err.message;}finally{b.disabled=false;}};
-$('export').onclick=()=>{if(!requireUser())return;const blob=new Blob([JSON.stringify({exported_at:new Date().toISOString(),jobs:[...tracked.values()].map(({user_id,...j})=>j)},null,2)],{type:'application/json'});const a=node('a');a.href=URL.createObjectURL(blob);a.download='next-chapter-tracker.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
-render();loadFeed();
-if(hasAuthLinkError)notice('This sign-in link was already used or has expired. If you are not already signed in, request a new email link.');
+$('export').onclick=()=>{if(!trackerReady)return;const blob=new Blob([JSON.stringify({exported_at:new Date().toISOString(),jobs:[...tracked.values()].map(({user_id,...j})=>j)},null,2)],{type:'application/json'});const a=node('a');a.href=URL.createObjectURL(blob);a.download='next-chapter-tracker.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+render();loadFeed();syncTracker();
+if (activeView === 'portal') syncPortalJobs();

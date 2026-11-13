@@ -1,1 +1,1 @@
-{"name":"next-chapter-jobs","private":true,"version":"1.0.0","scripts":{"build":"node build.mjs"},"dependencies":{"@supabase/supabase-js":"2.119.0"},"devDependencies":{"esbuild":"0.28.2"}}
+{"name":"next-chapter-jobs","private":true,"version":"1.0.0","scripts":{"build":"node build.mjs"},"devDependencies":{"esbuild":"0.28.2"}}

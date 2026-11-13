@@ -97,10 +97,6 @@ h3 { font-size: 1.06rem; overflow-wrap: anywhere; }
 .sidebar nav a:hover { background: #264238; text-decoration: none; }
 .sidebar nav a[aria-current=page] { background: #d9ecce; color: var(--green-dark); }
 #tracker-count, .nav-count { padding: 1px 6px; border: 1px solid currentColor; border-radius: 20px; font-size: .75rem; }
-.account-box { margin-top: auto; padding-top: 16px; border-top: 1px solid #476459; }
-.account-box p { margin-bottom: 10px; color: #ccddd2; font-size: .78rem; overflow-wrap: anywhere; }
-.account-box button { width: 100%; background: #25463a; color: white; border-color: #628476; }
-.account-box button:hover { background: #345749; }
 
 main { width: 100%; max-width: 1460px; min-width: 0; margin-inline: auto; padding: 36px clamp(18px, 3.3vw, 54px) 22px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 25px; }
@@ -115,6 +111,7 @@ main { width: 100%; max-width: 1460px; min-width: 0; margin-inline: auto; paddin
 #notice, .feed-warning { padding: 11px 14px; margin-bottom: 12px; border-radius: 9px; background: var(--mint); font-size: .88rem; overflow-wrap: anywhere; }
 .feed-warning { background: #fff1d8; color: #624215; }
 .progress { margin: 0 0 22px; }
+#today-applied { margin: 0 0 10px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .section-heading a { display: inline-flex; min-height: 44px; align-items: center; gap: 6px; font-size: .87rem; font-weight: 650; }
 .stats { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; }
@@ -187,7 +184,6 @@ dialog form { padding: 25px; }
 dialog h2 { padding-right: 44px; font-size: 1.45rem; }
 dialog p, dialog label { margin: 12px 0; }
 dialog p { font-size: .9rem; overflow-wrap: anywhere; }
-dialog .small { font-size: .78rem; }
 .dialog-close { position: absolute; top: 10px; right: 10px; width: 44px; padding: 0; font-size: 1.4rem; }
 @media (max-width: 1120px) {
   body { grid-template-columns: 175px minmax(0,1fr); }
@@ -196,11 +192,9 @@ dialog .small { font-size: .78rem; }
 }
 @media (max-width: 880px) {
   body { display: block; }
-  .sidebar { position: static; display: grid; grid-template-columns: minmax(0,1fr) auto; min-height: auto; gap: 9px 12px; padding: 12px 18px 9px; }
-  .sidebar nav { grid-row: 2; grid-column: 1/-1; display: flex; flex-wrap: wrap; }
+  .sidebar { position: static; display: grid; min-height: auto; gap: 9px; padding: 12px 18px 9px; }
+  .sidebar nav { display: flex; flex-wrap: wrap; }
   .sidebar nav a { min-height: 44px; }
-  .account-box { grid-column: 2; grid-row: 1; align-self: center; margin: 0; padding: 0; border: 0; }
-  .account-box p { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
   main { padding-top: 22px; }
 }
 @media (max-width: 630px) {

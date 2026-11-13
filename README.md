@@ -5,7 +5,7 @@ A job discovery dashboard with a private, cross-device application tracker.
 - Public listings come from 13 employer Greenhouse, Lever and Ashby boards. Early-career and location filters are available. A source check does not guarantee employer legitimacy or eligibility.
 - LinkedIn, Naukri, Indeed, Glassdoor, Google, Foundit and Wellfound are labelled search shortcuts, not imported feeds. Save any posting using **Add a job link**.
 - **Track & open** saves the job and opens its application. It never records an application as submitted. Update Applied, Interview, Offer or Closed yourself.
-- Supabase authentication and row-level security keep each user's jobs private. Sign in with the same account on another device. Changes sync on focus, every minute or with Sync now. Export is available for backups.
+- The owner's private bookmark opens the tracker and email imports. Open the same bookmark once on each device. Tracker changes sync on focus, every minute or with Sync now. Export is available for backups.
 - No resume, candidate answers, Gmail credentials or browser sessions are deployed.
 
 ## Deployment
@@ -14,7 +14,7 @@ Vercel project: `next-chapter-jobs` in Abhiram's projects. Build with `npm ci` a
 
 Public repository: [Abteeeen/next-chapter-jobs](https://github.com/Abteeeen/next-chapter-jobs). The Vercel frontend reads the daily feed at `https://abteeeen.github.io/next-chapter-jobs/jobs.json`, so daily updates do not require Vercel redeployments. The Pages workflow runs at 03:30 UTC / 09:00 IST daily, on push and on manual dispatch. GitHub may delay scheduled runs. Total source failure fails the workflow instead of replacing the feed. Partial failures and stale timestamps are shown.
 
-Supabase project: `ybyfecibshwmqalyljiv`, Next Chapter Jobs, Mumbai, Abteeeen's Org. Owner-only SELECT/INSERT/UPDATE/DELETE policies compare `auth.uid()` to `user_id`. Anonymous privileges are revoked. Configure Auth Site URL and explicit redirect URLs for production and Pages; keep email confirmation enabled. The default email service restricts delivery, so verify the owner's confirmation email before claiming account setup is complete.
+Supabase project: `ybyfecibshwmqalyljiv`, Next Chapter Jobs, Mumbai, Abteeeen's Org. Direct table access stays restricted by owner-only policies. The `personal_tracker` RPC uses a dedicated, hashed owner bookmark credential and returns only the designated owner's tracker and portal snapshots. The application worker uses its existing separate credential. The bookmark key must stay out of Git, build artifacts, and shared links.
 
 Free services have quotas and may pause inactive projects. No paid plan or optional paid feature should be enabled without the owner's approval.
 
@@ -32,4 +32,4 @@ The private application agent remains in `Abteeeen/next-chapter-job-agent`. Publ
 
 Production: https://next-chapter-jobs.vercel.app/
 
-Use **Email me a sign-in link** for passwordless access. Email/password and password recovery are also available. Auth redirects are configured for the production URL and the Pages backup. The schema reference is in `supabase/schema.sql`; it is not included in the deployed static artifacts.
+The public URL opens job listings. The owner bookmark opens My tracker and stores access in the current browser after validation. The key is removed from the address bar. Keep the original bookmark for new devices and clearing browser storage. The schema references in `supabase/` are outside the deployed static artifacts.

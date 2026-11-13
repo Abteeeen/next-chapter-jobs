@@ -20,10 +20,6 @@
       <a href="#tracker" data-view="tracker">My tracker <span id="tracker-count" hidden></span></a>
       <a href="#sources" data-view="sources">Sources</a>
     </nav>
-    <div class="account-box">
-      <p id="sync-status" role="status">Checking sign-in…</p>
-      <button id="account" type="button">Sign in</button>
-    </div>
   </header>
   <main id="main" tabindex="-1">
     <section class="page-header" aria-labelledby="page-title">
@@ -46,6 +42,7 @@
         <h2 id="progress-title">Application progress</h2>
         <a id="view-tracker" href="#tracker">View tracker <span aria-hidden="true">→</span></a>
       </div>
+      <p id="today-applied" class="filter-caption" hidden></p>
       <div class="stats" id="stats" hidden>
         <button type="button" class="stat" data-status="Saved"><span>Saved</span><strong id="stat-saved">—</strong></button>
         <button type="button" class="stat" data-status="Applied"><span>Applied</span><strong id="stat-applied">—</strong></button>
@@ -91,6 +88,7 @@
           <button type="button" id="add-job" class="primary">+ Add job link</button>
           <button type="button" id="export">Export</button>
           <button type="button" id="sync">Sync now</button>
+          <p id="sync-status" role="status"></p>
         </div>
         <div id="portal-tools" class="toolbar" hidden>
           <p id="portal-updated" role="status"></p>
@@ -112,7 +110,5 @@
     </section>
     <footer>Feed refresh is scheduled daily for 9:00 AM IST. Check the employer page for current availability.</footer>
   </main>
-<dialog id="auth-dialog" aria-labelledby="auth-title"><form id="auth-form"><button class="dialog-close" type="button" data-close="auth-dialog" aria-label="Close sign-in">×</button><h2 id="auth-title">Sign in to your tracker</h2><p>Sign in on your phone or laptop to see the same saved jobs and application statuses.</p><label>Email address<input id="email" type="email" autocomplete="email" required></label><button type="button" id="email-link" class="primary">Email me a sign-in link</button><p>Or use your tracker password:</p><label>Password<input id="password" type="password" autocomplete="current-password" minlength="10" required></label><p id="auth-message" role="status"></p><button type="submit" id="login" class="primary">Sign in</button><button type="button" id="signup">Create account</button><button type="button" id="forgot">Forgot password?</button><p class="small">Email links are single-use and expire. If you choose a password instead, use a unique one with at least 10 characters. Never enter your Gmail password here.</p></form></dialog>
 <dialog id="job-dialog" aria-labelledby="job-dialog-title"><form id="job-form"><button class="dialog-close" type="button" data-close="job-dialog" aria-label="Close add job">×</button><h2 id="job-dialog-title">Add a job link</h2><label>Original job URL<input id="job-url" type="url" placeholder="https://…" required maxlength="2048"></label><label>Job title<input id="job-title" required maxlength="250"></label><label>Company<input id="job-company" required maxlength="200"></label><label>Location<input id="job-location" maxlength="300"></label><p id="job-message" role="alert"></p><button class="primary" type="submit">Save job</button></form></dialog>
-<dialog id="recovery-dialog" aria-labelledby="recovery-title"><form id="recovery-form"><h2 id="recovery-title">Choose a new password</h2><label>New password<input id="new-password" type="password" autocomplete="new-password" minlength="10" required></label><p id="recovery-message" role="status"></p><button type="submit" class="primary">Save new password</button></form></dialog>
 </body></html>
